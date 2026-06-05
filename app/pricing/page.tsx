@@ -49,7 +49,7 @@ const PLANS = [
       "Saturday Researcher",
       "Kanban + API access",
     ],
-    unavailable: [],
+    unavailable: [] as number[],
     priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
   },
 ];
