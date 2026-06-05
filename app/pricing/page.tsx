@@ -16,7 +16,7 @@ const PLANS = [
       "No Saturday Researcher",
       "No Kanban scheduler",
     ],
-    unavailable: [2, 3, 4],
+    unavailable: [2, 3, 4] as number[],
     priceId: null,
   },
   {
@@ -33,7 +33,7 @@ const PLANS = [
       "Saturday Researcher",
       "Kanban scheduler",
     ],
-    unavailable: [],
+    unavailable: [] as number[],
     priceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID,
   },
   {
