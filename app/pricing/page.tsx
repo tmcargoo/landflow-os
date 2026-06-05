@@ -17,7 +17,7 @@ const PLANS = [
       "No Kanban scheduler",
     ],
     unavailable: [2, 3, 4] as number[],
-    priceId: null,
+    priceId: undefined,
   },
   {
     name: "Starter",
