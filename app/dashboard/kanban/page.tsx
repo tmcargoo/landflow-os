@@ -2,104 +2,149 @@
 import { useState } from "react";
 import Link from "next/link";
 
-interface Task {
+interface Lead {
   id: string;
-  title: string;
-  column: "Researching" | "Sunday Callbacks" | "Tuesday Follow-ups";
-  due: string;
-  minutes: number;
-  lead: string;
+  owner_name: string;
+  property_address: string;
+  city: string;
+  state: string;
+  motivation_score: number;
+  out_of_state: boolean;
+  tax_delinquent: boolean;
+  vacant: boolean;
+  ownership_years: number;
+  estimated_equity: number;
 }
 
-function generateTasks(hours: number): Task[] {
-  const leads = [
-    "John Smith — 123 Main St",
-    "Mary Johnson — 456 Oak Ave",
-    "Robert Davis — 789 Pine St",
-    "Linda Wilson — 321 Elm St",
-    "James Brown — 654 Cedar Ave",
-    "Patricia Moore — 987 Maple Dr",
-    "Michael Taylor — 147 Oak Blvd",
-    "Barbara Anderson — 258 Pine Rd",
-  ];
+const DEMO_LEADS: Lead[] = [
+  {
+    id: "1",
+    owner_name: "John Smith",
+    property_address: "123 Main St",
+    city: "Austin",
+    state: "TX",
+    motivation_score: 72,
+    out_of_state: true,
+    tax_delinquent: true,
+    vacant: false,
+    ownership_years: 25,
+    estimated_equity: 75,
+  },
+  {
+    id: "2",
+    owner_name: "Mary Johnson",
+    property_address: "456 Oak Ave",
+    city: "Dallas",
+    state: "TX",
+    motivation_score: 0,
+    out_of_state: false,
+    tax_delinquent: false,
+    vacant: false,
+    ownership_years: 5,
+    estimated_equity: 30,
+  },
+  {
+    id: "3",
+    owner_name: "Robert Davis",
+    property_address: "789 Pine St",
+    city: "Houston",
+    state: "TX",
+    motivation_score: 90,
+    out_of_state: true,
+    tax_delinquent: true,
+    vacant: true,
+    ownership_years: 22,
+    estimated_equity: 95,
+  },
+];
 
-  const totalMinutes = hours * 60;
-  const perLead = 30 + 15 + 10;
-  const maxLeads = Math.floor(totalMinutes / perLead);
-  const tasks: Task[] = [];
-
-  const today = new Date();
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() + ((7 - today.getDay()) % 7 || 7));
-  const tuesday = new Date(today);
-  tuesday.setDate(today.getDate() + ((2 - today.getDay() + 7) % 7 || 7));
-
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-  for (let i = 0; i < Math.min(maxLeads, leads.length); i++) {
-    const researchDay = new Date(today);
-    researchDay.setDate(today.getDate() + i);
-
-    tasks.push({
-      id: `r-${i}`,
-      title: `Research lead`,
-      column: "Researching",
-      due: fmt(researchDay),
-      minutes: 30,
-      lead: leads[i],
-    });
-    tasks.push({
-      id: `c-${i}`,
-      title: `Call owner`,
-      column: "Sunday Callbacks",
-      due: fmt(sunday),
-      minutes: 15,
-      lead: leads[i],
-    });
-    tasks.push({
-      id: `f-${i}`,
-      title: `Follow up`,
-      column: "Tuesday Follow-ups",
-      due: fmt(tuesday),
-      minutes: 10,
-      lead: leads[i],
-    });
-  }
-
-  return tasks;
+function ScoreBadge({ score }: { score: number }) {
+  const color =
+    score >= 70
+      ? "bg-green-100 text-green-700"
+      : score >= 40
+      ? "bg-yellow-100 text-yellow-700"
+      : "bg-gray-100 text-gray-500";
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${color}`}>
+      {score}
+    </span>
+  );
 }
 
-const COLUMNS = [
-  { id: "Researching", color: "bg-blue-50 border-blue-100", badge: "bg-blue-100 text-blue-700", dot: "bg-blue-400" },
-  { id: "Sunday Callbacks", color: "bg-green-50 border-green-100", badge: "bg-green-100 text-green-700", dot: "bg-green-400" },
-  { id: "Tuesday Follow-ups", color: "bg-orange-50 border-orange-100", badge: "bg-orange-100 text-orange-700", dot: "bg-orange-400" },
-] as const;
+export default function Dashboard() {
+  const [leads] = useState<Lead[]>(DEMO_LEADS);
+  const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [search, setSearch] = useState("");
+  const [analyzing, setAnalyzing] = useState<string | null>(null);
+  const [analyses, setAnalyses] = useState<Record<string, Record<string, string>>>({});
 
-type ColumnId = typeof COLUMNS[number]["id"];
-
-export default function KanbanPage() {
-  const [hours, setHours] = useState(5);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [generated, setGenerated] = useState(false);
-  const [done, setDone] = useState<Set<string>>(new Set());
-
-  const generate = () => {
-    setTasks(generateTasks(hours));
-    setGenerated(true);
-    setDone(new Set());
+  const handleFile = async (file: File) => {
+    if (!file.name.endsWith(".csv")) {
+      setUploadStatus("Please upload a .csv file");
+      return;
+    }
+    setUploading(true);
+    setUploadStatus("Uploading and scoring leads...");
+    const csvText = await file.text();
+    try {
+      const res = await fetch(
+        process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || "",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ csv: csvText, userId: "demo-user" }),
+        }
+      );
+      if (res.ok) {
+        setUploadStatus("Leads imported and scored successfully");
+      } else {
+        setUploadStatus("Import completed — check your leads table");
+      }
+    } catch {
+      setUploadStatus("Upload sent — check n8n for results");
+    }
+    setUploading(false);
   };
 
-  const toggleDone = (id: string) => {
-    setDone((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const analyzeLead = async (lead: Lead) => {
+    setAnalyzing(lead.id);
+    try {
+      const res = await fetch(
+        process.env.NEXT_PUBLIC_AI_ANALYZER_URL || "",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(lead),
+        }
+      );
+      const data = await res.json();
+      setAnalyses((prev) => ({ ...prev, [lead.id]: data }));
+    } catch {
+      setAnalyses((prev) => ({
+        ...prev,
+        [lead.id]: {
+          summary: "Analysis failed. Please try again.",
+          priority: "MEDIUM",
+        },
+      }));
+    }
+    setAnalyzing(null);
   };
 
-  const totalMinutes = hours * 60;
-  const usedMinutes = tasks.reduce((a, b) => a + b.minutes, 0);
+  const filtered = leads.filter(
+    (l) =>
+      l.owner_name.toLowerCase().includes(search.toLowerCase()) ||
+      l.property_address.toLowerCase().includes(search.toLowerCase()) ||
+      l.city.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const highLeads = leads.filter((l) => l.motivation_score >= 70).length;
+  const avgScore = Math.round(
+    leads.reduce((a, b) => a + b.motivation_score, 0) / leads.length
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -109,134 +154,166 @@ export default function KanbanPage() {
             <span className="text-white text-sm font-bold">LF</span>
           </div>
           <span className="font-semibold text-gray-900">LandFlow OS</span>
-          <span className="text-gray-300 mx-2">/</span>
-          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900">
-            Dashboard
-          </Link>
-          <span className="text-gray-300 mx-2">/</span>
-          <span className="text-sm text-gray-900">Weekly Kanban</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard" className="text-sm text-green-600 font-medium">Dashboard</Link>
+          <Link href="/dashboard/kanban" className="text-sm text-gray-500 hover:text-gray-900">Kanban</Link>
+          <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900">Upgrade</Link>
+          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600">TR</div>
         </div>
       </nav>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="bg-white rounded-xl border border-gray-100 p-6 mb-8">
-          <h1 className="text-base font-semibold text-gray-900 mb-1">
-            Weekly task scheduler
-          </h1>
-          <p className="text-sm text-gray-400 mb-5">
-            Enter your available hours and LandFlow will plan your week automatically.
-          </p>
-          <div className="flex items-center gap-6">
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-gray-600">Available hours this week</span>
-                <span className="font-semibold text-gray-900">{hours} hrs</span>
-              </div>
-              <input
-                type="range"
-                min={1}
-                max={20}
-                step={1}
-                value={hours}
-                onChange={(e) => setHours(Number(e.target.value))}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-gray-300 mt-1">
-                <span>1 hr</span>
-                <span>20 hrs</span>
-              </div>
-            </div>
-            <button
-              onClick={generate}
-              className="bg-green-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 whitespace-nowrap"
-            >
-              Generate my week
-            </button>
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <p className="text-xs text-gray-400 mb-1">Total leads</p>
+            <p className="text-3xl font-semibold text-gray-900">{leads.length}</p>
           </div>
-          {generated && (
-            <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-6 text-sm">
-              <span className="text-gray-500">
-                Leads scheduled:{" "}
-                <strong className="text-gray-900">{tasks.length / 3}</strong>
-              </span>
-              <span className="text-gray-500">
-                Time used:{" "}
-                <strong className="text-gray-900">{usedMinutes} mins</strong>
-              </span>
-              <span className="text-gray-500">
-                Time available:{" "}
-                <strong className="text-gray-900">{totalMinutes} mins</strong>
-              </span>
-              <span className="text-gray-500">
-                Tasks completed:{" "}
-                <strong className="text-green-600">{done.size}</strong>
-              </span>
-            </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <p className="text-xs text-gray-400 mb-1">High priority</p>
+            <p className="text-3xl font-semibold text-green-600">{highLeads}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <p className="text-xs text-gray-400 mb-1">Avg score</p>
+            <p className="text-3xl font-semibold text-gray-900">{avgScore}</p>
+          </div>
+        </div>
+
+        <div
+          className={`border-2 border-dashed rounded-xl p-10 text-center mb-8 transition-colors ${
+            dragOver ? "border-green-400 bg-green-50" : "border-gray-200 bg-white"
+          }`}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+          }}
+        >
+          <div className="text-4xl mb-3">📁</div>
+          <p className="text-gray-600 font-medium mb-1">Drop your PropStream CSV here</p>
+          <p className="text-gray-400 text-sm mb-4">or click to browse your files</p>
+          <label className="cursor-pointer bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-green-700">
+            Choose CSV file
+            <input
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFile(file);
+              }}
+            />
+          </label>
+          {uploading && (
+            <p className="mt-4 text-green-600 text-sm animate-pulse">{uploadStatus}</p>
+          )}
+          {!uploading && uploadStatus && (
+            <p className="mt-4 text-green-600 text-sm">{uploadStatus}</p>
           )}
         </div>
 
-        {generated && (
-          <div className="grid grid-cols-3 gap-6">
-            {COLUMNS.map((col) => {
-              const colTasks = tasks.filter((t) => t.column === col.id);
-              return (
-                <div key={col.id} className={`rounded-xl border p-4 ${col.color}`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${col.dot}`} />
-                      <h2 className="text-sm font-semibold text-gray-800">
-                        {col.id}
-                      </h2>
+        <div className="bg-white rounded-xl border border-gray-100">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Your leads</h2>
+            <input
+              type="text"
+              placeholder="Search leads..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 w-48 focus:outline-none focus:border-green-400"
+            />
+          </div>
+          <div className="divide-y divide-gray-50">
+            {filtered.map((lead) => (
+              <div key={lead.id} className="px-6 py-4 hover:bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-xs font-semibold text-gray-600">
+                      {lead.owner_name.split(" ").map((n) => n[0]).join("")}
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${col.badge}`}>
-                      {colTasks.length}
-                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{lead.owner_name}</p>
+                      <p className="text-xs text-gray-400">
+                        {lead.property_address}, {lead.city}, {lead.state}
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    {colTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => toggleDone(task.id)}
-                        className={`bg-white rounded-lg border border-gray-100 p-3 cursor-pointer hover:border-gray-200 transition-all ${done.has(task.id) ? "opacity-50" : ""}`}
+                  <div className="flex items-center gap-3">
+                    {lead.out_of_state && (
+                      <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Out of state</span>
+                    )}
+                    {lead.tax_delinquent && (
+                      <span className="text-xs bg-red-50 text-red-500 px-2 py-0.5 rounded-full">Tax delinquent</span>
+                    )}
+                    {lead.vacant && (
+                      <span className="text-xs bg-orange-50 text-orange-500 px-2 py-0.5 rounded-full">Vacant</span>
+                    )}
+                    <ScoreBadge score={lead.motivation_score} />
+                    <div className="flex gap-2 ml-2">
+                      <button
+                        onClick={() => analyzeLead(lead)}
+                        disabled={analyzing === lead.id}
+                        className="text-xs text-purple-600 hover:underline disabled:opacity-50"
                       >
-                        <div className="flex items-start gap-2">
-                          <div className={`w-4 h-4 rounded border mt-0.5 flex-shrink-0 flex items-center justify-center text-white text-xs ${done.has(task.id) ? "bg-green-500 border-green-500" : "border-gray-300"}`}>
-                            {done.has(task.id) && "✓"}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-xs font-medium ${done.has(task.id) ? "line-through text-gray-400" : "text-gray-800"}`}>
-                              {task.title}
-                            </p>
-                            <p className="text-xs text-gray-400 truncate mt-0.5">
-                              {task.lead}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <span className="text-xs text-gray-300">
-                                {task.due}
-                              </span>
-                              <span className="text-xs text-gray-300">·</span>
-                              <span className="text-xs text-gray-300">
-                                {task.minutes} min
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        {analyzing === lead.id ? "Analyzing..." : "AI analyze ✦"}
+                      </button>
+                      <Link
+                        href={`/dashboard/researcher/${lead.id}`}
+                        className="text-xs text-green-600 hover:underline"
+                      >
+                        Research →
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+                {analyses[lead.id] && (
+                  <div className="mt-3 ml-13 bg-purple-50 border border-purple-100 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-purple-700">AI Analysis</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        analyses[lead.id].priority === "HIGH"
+                          ? "bg-green-100 text-green-700"
+                          : analyses[lead.id].priority === "LOW"
+                          ? "bg-gray-100 text-gray-500"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}>
+                        {analyses[lead.id].priority}
+                      </span>
+                    </div>
+                    {analyses[lead.id].summary && (
+                      <p className="text-xs text-gray-700 mb-1">
+                        <span className="font-medium">Summary:</span> {analyses[lead.id].summary}
+                      </p>
+                    )}
+                    {analyses[lead.id].motivation && (
+                      <p className="text-xs text-gray-700 mb-1">
+                        <span className="font-medium">Motivation:</span> {analyses[lead.id].motivation}
+                      </p>
+                    )}
+                    {analyses[lead.id].approach && (
+                      <p className="text-xs text-gray-700 mb-1">
+                        <span className="font-medium">Approach:</span> {analyses[lead.id].approach}
+                      </p>
+                    )}
+                    {analyses[lead.id].offer_range && (
+                      <p className="text-xs text-gray-700 mb-1">
+                        <span className="font-medium">Offer range:</span> {analyses[lead.id].offer_range}
+                      </p>
+                    )}
+                    {analyses[lead.id].risk && (
+                      <p className="text-xs text-gray-600">
+                        <span className="font-medium text-red-600">Risk:</span> {analyses[lead.id].risk}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        )}
-
-        {!generated && (
-          <div className="text-center py-20 text-gray-300">
-            <div className="text-5xl mb-4">📅</div>
-            <p className="text-gray-400 font-medium">Set your hours and click Generate</p>
-            <p className="text-sm text-gray-300 mt-1">Your weekly task plan will appear here</p>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
