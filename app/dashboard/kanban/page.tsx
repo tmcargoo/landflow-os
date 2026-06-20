@@ -14,48 +14,14 @@ interface Lead {
   vacant: boolean;
   ownership_years: number;
   estimated_equity: number;
+  pipeline_status: string;
+  notes: string;
 }
 
 const DEMO_LEADS: Lead[] = [
-  {
-    id: "1",
-    owner_name: "John Smith",
-    property_address: "123 Main St",
-    city: "Austin",
-    state: "TX",
-    motivation_score: 72,
-    out_of_state: true,
-    tax_delinquent: true,
-    vacant: false,
-    ownership_years: 25,
-    estimated_equity: 75,
-  },
-  {
-    id: "2",
-    owner_name: "Mary Johnson",
-    property_address: "456 Oak Ave",
-    city: "Dallas",
-    state: "TX",
-    motivation_score: 0,
-    out_of_state: false,
-    tax_delinquent: false,
-    vacant: false,
-    ownership_years: 5,
-    estimated_equity: 30,
-  },
-  {
-    id: "3",
-    owner_name: "Robert Davis",
-    property_address: "789 Pine St",
-    city: "Houston",
-    state: "TX",
-    motivation_score: 90,
-    out_of_state: true,
-    tax_delinquent: true,
-    vacant: true,
-    ownership_years: 22,
-    estimated_equity: 95,
-  },
+  { id: "1", owner_name: "John Smith", property_address: "123 Main St", city: "Austin", state: "TX", motivation_score: 72, out_of_state: true, tax_delinquent: true, vacant: false, ownership_years: 25, estimated_equity: 75, pipeline_status: "Contacted", notes: "" },
+  { id: "2", owner_name: "Mary Johnson", property_address: "456 Oak Ave", city: "Dallas", state: "TX", motivation_score: 0, out_of_state: false, tax_delinquent: false, vacant: false, ownership_years: 5, estimated_equity: 30, pipeline_status: "New", notes: "" },
+  { id: "3", owner_name: "Robert Davis", property_address: "789 Pine St", city: "Houston", state: "TX", motivation_score: 90, out_of_state: true, tax_delinquent: true, vacant: true, ownership_years: 22, estimated_equity: 95, pipeline_status: "Offer Sent", notes: "" },
 ];
 
 function ScoreBadge({ score }: { score: number }) {
@@ -73,7 +39,8 @@ function ScoreBadge({ score }: { score: number }) {
 }
 
 export default function Dashboard() {
-  const [leads] = useState<Lead[]>(DEMO_LEADS);
+  const [leads, setLeads] = useState<Lead[]>(DEMO_LEADS);
+  const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -134,6 +101,40 @@ export default function Dashboard() {
     setAnalyzing(null);
   };
 
+  const PIPELINE_STAGES = [
+  "New",
+  "Contacted",
+  "Interested",
+  "Offer Sent",
+  "Under Contract",
+  "Closed",
+  "Dead",
+];
+
+const updateStatus = (leadId: string, status: string) => {
+  setLeads((prev) =>
+    prev.map((l) => (l.id === leadId ? { ...l, pipeline_status: status } : l))
+  );
+};
+
+const updateNotes = (leadId: string, notes: string) => {
+  setLeads((prev) =>
+    prev.map((l) => (l.id === leadId ? { ...l, notes } : l))
+  );
+};
+
+const stageColor = (status: string) => {
+  switch (status) {
+    case "New": return "bg-gray-100 text-gray-600";
+    case "Contacted": return "bg-blue-100 text-blue-700";
+    case "Interested": return "bg-purple-100 text-purple-700";
+    case "Offer Sent": return "bg-yellow-100 text-yellow-700";
+    case "Under Contract": return "bg-orange-100 text-orange-700";
+    case "Closed": return "bg-green-100 text-green-700";
+    case "Dead": return "bg-red-100 text-red-500";
+    default: return "bg-gray-100 text-gray-600";
+  }
+};
   const filtered = leads.filter(
     (l) =>
       l.owner_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -252,23 +253,38 @@ export default function Dashboard() {
                       <span className="text-xs bg-orange-50 text-orange-500 px-2 py-0.5 rounded-full">Vacant</span>
                     )}
                     <ScoreBadge score={lead.motivation_score} />
+                    <select
+                      value={lead.pipeline_status}
+                      onChange={(e) => updateStatus(lead.id, e.target.value)}
+                      className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer ${stageColor(lead.pipeline_status)}`}
+                    >
+                     {PIPELINE_STAGES.map((stage) => (
+                      <option key={stage} value={stage}>{stage}</option>
+                     ))}
+                    </select>
                     <div className="flex gap-2 ml-2">
-                      <button
-                        onClick={() => analyzeLead(lead)}
-                        disabled={analyzing === lead.id}
-                        className="text-xs text-purple-600 hover:underline disabled:opacity-50"
-                      >
-                        {analyzing === lead.id ? "Analyzing..." : "AI analyze ✦"}
+                      <button onClick={() => setEditingNotes(editingNotes === lead.id ? null : lead.id)} className="text-xs text-gray-500 hover:underline">
+                        Notes {lead.notes ? "📝" : ""}
                       </button>
-                      <Link
-                        href={`/dashboard/researcher/${lead.id}`}
-                        className="text-xs text-green-600 hover:underline"
-                      >
-                        Research →
-                      </Link>
+                      <button onClick={() => analyzeLead(lead)} disabled={analyzing === lead.id} className="text-xs text-purple-600 hover:underline disabled:opacity-50">
+                        {analyzing === lead.id ? "Analyzing..." : "AI analyze"}
+                      </button>
+                      <Link href={`/dashboard/researcher/${lead.id}`} className="text-xs text-green-600 hover:underline">Research</Link>
                     </div>
                   </div>
                 </div>
+                {editingNotes === lead.id && (
+                  <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <textarea
+                      value={lead.notes}
+                      onChange={(e) => updateNotes(lead.id, e.target.value)}
+                      placeholder="Add call notes, conversation history, next steps..."
+                      className="w-full text-sm border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-green-400 resize-none"
+                      rows={3}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Notes save automatically as you type</p>
+                  </div>
+                )}
                 {analyses[lead.id] && (
                   <div className="mt-3 ml-13 bg-purple-50 border border-purple-100 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
