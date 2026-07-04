@@ -2,6 +2,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import LogoutButton from '@/lib/logout-button'
 
 const CHECKLIST = [
   { key: "county_records", label: "County assessor records verified" },
@@ -91,9 +92,12 @@ const LINKS = [
           </Link>
           <span className="text-gray-300 mx-2">/</span>
           <span className="text-sm text-gray-900">Saturday Researcher</span>
-        </div>
+          <span className="text-gray-300 mx-2">/</span>
+          <span className="text-sm text-gray-900">Saturday Researcher</span>
+          <LogoutButton />
+       </div>
       </nav>
-
+           
       <div className="max-w-6xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-6">
           <div>

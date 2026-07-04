@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import LogoutButton from '@/lib/logout-button'
 
 interface Lead {
   id: string;
@@ -159,7 +160,7 @@ const stageColor = (status: string) => {
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-sm text-green-600 font-medium">Dashboard</Link>
           <Link href="/dashboard/kanban" className="text-sm text-gray-500 hover:text-gray-900">Kanban</Link>
-          <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900">Upgrade</Link>
+          <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900">Upgrade</Link><LogoutButton />
           <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600">TR</div>
         </div>
       </nav>
