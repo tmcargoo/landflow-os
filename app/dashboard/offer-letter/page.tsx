@@ -57,49 +57,110 @@ export default function OfferLetterPage() {
     setLetterContent('')
     setContractContent('')
 
+const contactPhrase: Record<string, string> = {
+      'Direct Mail': 'responding to our direct mail',
+      'Phone Call': 'calling us',
+      'Advertisement': 'responding to our advertisement',
+      'Online Ad': 'reaching out through our online ad',
+      'Referral': 'reaching out based on a referral',
+    }
+
+    const phrase = contactPhrase[contactMethod] || 'responding to our direct mail'
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    const buyerEstimate = offerPrice ? `$${(parseFloat(offerPrice.replace(/[^0-9.]/g, '')) + parseFloat(backTaxes.replace(/[^0-9.]/g, '') || '0')).toLocaleString()}` : ''
 
-    const prompt = `You are generating a real estate offer letter and purchase agreement for a land investor. Use ONLY the information provided — do not add, invent, or assume any details.
+    const formatMoney = (val: string) => {
+      const num = parseFloat(val.replace(/[^0-9.]/g, ''))
+      if (isNaN(num)) return '0'
+      return num.toLocaleString('en-US')
+    }
 
-COMPANY INFO:
-- Company Name: ${profile.company_name}
-- Company Address: ${profile.company_address}
-- Company Phone: ${profile.company_phone}
-- Company Email: ${profile.company_email}
-- Investor Name: ${profile.investor_name}
+    const formatDate = (dateStr: string) => {
+      if (!dateStr) return ''
+      const [year, month, day] = dateStr.split('-')
+      return `${month}-${day}-${year}`
+    }
 
-SELLER INFO:
-- Seller Name: ${selectedLead.owner_name}
-- Property Address: ${selectedLead.property_address}, ${selectedLead.city}, ${selectedLead.state}
-- Acreage: ${selectedLead.acreage} acres
-- APN/Parcel ID: ${selectedLead.apn}
+    const netToSeller = formatMoney(offerPrice)
+    const backTaxesFormatted = backTaxes ? formatMoney(backTaxes) : 'N/A'
+    const totalCost = formatMoney(
+      String(parseFloat(offerPrice.replace(/[^0-9.]/g, '')) + parseFloat(backTaxes.replace(/[^0-9.]/g, '') || '0'))
+    )
 
-DEAL INFO:
-- Contact Method: ${contactMethod}
-- Offer Price (Net to Seller): $${offerPrice}
-- Approx Outstanding Back Taxes: ${backTaxes ? '$' + backTaxes : 'N/A'}
-- Buyer Estimated Total Cost: ${buyerEstimate}
-- Today's Date: ${today}
-- Agreement Expiration Date: ${expirationDate}
+    const prompt = `Fill in ONLY the blank fields. Do NOT rewrite or rephrase anything else. Output the completed documents exactly as shown below.
 
-Generate exactly two documents separated by "---CONTRACT---":
+${profile.company_name} | ${profile.company_address}
+${profile.company_phone} | ${profile.company_email}
 
-DOCUMENT 1: A professional offer letter following this structure:
-- Header with company name, address, phone, email
-- Seller name and address
-- Date
-- Opening: "Dear [Seller Name],"
-- Thank them for responding via ${contactMethod} (adjust the wording naturally for this contact method)
-- State the offer details clearly
-- Professional closing paragraph about covering all costs
-- Instructions for returning the agreement (3 options: text, email, mail)
-- Signature block with investor name, company, phone, email
+${selectedLead.owner_name}                                                    Date: ${today}
+${selectedLead.property_address}
+${selectedLead.city}, ${selectedLead.state}
 
-DOCUMENT 2: A Purchase and Sale Agreement with all 12 standard clauses filled in with the provided details.
+Dear ${selectedLead.owner_name},
 
-Use plain text formatting only. No markdown. No asterisks. No bullet symbols.`
+Thank you for ${phrase} about purchasing your ${selectedLead.acreage} acre property at:
 
+${selectedLead.property_address}, ${selectedLead.city}, ${selectedLead.state}
+
+After doing some research, we are willing to offer you the following for your property:
+
+Net Paid To Seller: $${netToSeller}
+Approx Outstanding Back Taxes: ${backTaxes ? '$' + backTaxesFormatted : 'N/A'}
+Buyer Estimated Cost To Purchase: $${totalCost}
+
+We are a real estate investment company and pride ourselves on professional and trouble-free transactions with seller satisfaction in mind. We will pay all of the associated costs of completing this transaction, including back taxes within reason, as well as title and escrow fees.
+
+The price we agree upon is the amount of the cashier's check you will receive. If you are interested in selling, simply sign the attached Purchase Agreement and follow the instructions at the bottom of this letter.
+
+Feel free to contact me anytime at ${profile.company_phone} to discuss this property or the sale of any other properties you may own. If you are not interested in selling at this time, please keep this letter and feel free to contact us if you decide to sell at a later date.
+
+Kind Regards,
+
+${profile.investor_name}
+${profile.company_name}
+${profile.company_phone}
+${profile.company_email}
+
+INSTRUCTIONS FOR RETURNING AGREEMENT
+
+Option 1: Sign and take a picture of the contract with your phone, and text it to ${profile.company_phone}.
+Option 2: Email the picture to ${profile.company_email}.
+Option 3: Mail to ${profile.company_name} & ${profile.company_address}
+
+---CONTRACT---
+
+${profile.company_name} | ${profile.company_address}
+${profile.company_phone} | ${profile.company_email}
+
+PURCHASE AND SALE AGREEMENT
+
+This contract dated ${today} in which Buyer: ${profile.investor_name}, offers to purchase from Seller: ${selectedLead.owner_name} the following described real estate, together with all improvements thereon and all appurtenant rights, located at:
+
+ADDRESS / APPROX ACREAGE: ${selectedLead.property_address}, ${selectedLead.city}, ${selectedLead.state} / ${selectedLead.acreage} acres
+APN / PARCEL ID: ${selectedLead.apn}
+
+1) The purchase price is to be $${netToSeller} payable in cash at closing.
+2) The conditions of this Purchase are as follows:
+   a) Property is sold in "AS-IS" condition with no warranties made by the seller. Seller will make Buyer aware of any known facts that affect the value of the Property.
+   b) If Seller cannot provide clear title, or clear access, or doesn't allow proper inspection of the property, Buyer will be released from any further obligation under this contract; otherwise Seller promises to sell under this contract.
+   c) Buyer shall select closing agent and where the Closing will be held.
+   d) This Purchase Agreement is assignable.
+   e) Buyer's performance in buying this property is contingent upon the Buyer's satisfactory due diligence of the property.
+3) Taxes to be prorated, any previous year's taxes to be paid by Seller. All attorney closing fees and customary closing costs shall be paid by the Buyer.
+4) Closing will be within Ninety (90) Days of agreement being accepted and signed by both Buyer and Seller. Seller grants any extension needed to clear title or to complete closing documentation. Title to the above described real estate to be conveyed by General Warranty Deed or other customary instrument of transfer.
+5) Closing may be extended an additional Thirty (30) days at Buyer request if still performing due diligence under the terms of this agreement.
+6) Title is to be free, clear, and unencumbered, free of any county, city and federal liens. All liens against the property shall be paid at closing by the seller.
+7) This offer, when accepted, comprises the entire agreement of Purchaser and Seller, and it is agreed that no other representations have been made.
+8) This offer will become a binding agreement when accepted and signed by both Buyer and Seller. If it is not accepted and signed by the Seller prior to ${formatDate(expirationDate)}, this agreement will be void.
+9) Buyer is agreeing to purchase property to lease or resell for a profit. Buyer and Seller agree that the Buyer is not intending to occupy the property. Seller understands that Buyer and/or its assigns or representatives are not earning any fee or commission from Seller. Seller should not expect representation from Buyer and/or its assigns or representatives.
+10) Seller agrees that Buyer can market the property, including on the MLS, for buyers prior to closing.
+11) Buyer retains the right to terminate this agreement by delivering to the Seller, a written notice of cancellation.
+12) Additional Terms (if applicable):
+
+SELLER:                                          BUYER:
+Signature: ___________________________           Signature: ___________________________
+Printed Name & Date: _________________           Printed Name & Date: _________________
+
+Output only the two documents. No explanations. No markdown. No asterisks.`
     try {
       const response = await fetch('/api/generate-offer', {
         method: 'POST',
