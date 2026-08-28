@@ -1,186 +1,274 @@
-﻿"use client";
-import { useState } from "react";
-import Link from "next/link";
+﻿'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
 import LogoutButton from '@/lib/logout-button'
 
+const DEMO_LEADS = [
+  { id: '1', owner_name: 'John Smith', property_address: '123 Main St', city: 'Atlanta', state: 'GA', zip: '30301', motivation_score: 85, stage: 'New Lead', notes: '' },
+  { id: '2', owner_name: 'Mary Johnson', property_address: '456 Oak Ave', city: 'Dallas', state: 'TX', zip: '75201', motivation_score: 72, stage: 'Contacted', notes: '' },
+  { id: '3', owner_name: 'Robert Davis', property_address: '789 Pine Rd', city: 'Phoenix', state: 'AZ', zip: '85001', motivation_score: 91, stage: 'Interested', notes: '' },
+  { id: '4', owner_name: 'Lisa Wilson', property_address: '321 Elm St', city: 'Miami', state: 'FL', zip: '33101', motivation_score: 68, stage: 'Offer Sent', notes: '' },
+  { id: '5', owner_name: 'James Brown', property_address: '654 Maple Dr', city: 'Denver', state: 'CO', zip: '80201', motivation_score: 79, stage: 'New Lead', notes: '' },
+]
+
+const STAGES = ['New Lead', 'Contacted', 'Interested', 'Offer Sent', 'Under Contract', 'Closed', 'Dead']
+
 interface Lead {
-  id: string;
-  owner_name: string;
-  property_address: string;
-  city: string;
-  state: string;
-  motivation_score: number;
-  out_of_state: boolean;
-  tax_delinquent: boolean;
-  vacant: boolean;
-  ownership_years: number;
-  estimated_equity: number;
-  pipeline_status: string;
-  notes: string;
+  id: string
+  owner_name: string
+  property_address: string
+  city: string
+  state: string
+  zip: string
+  motivation_score: number
+  stage: string
+  notes: string
 }
 
-const DEMO_LEADS: Lead[] = [
-  { id: "1", owner_name: "John Smith", property_address: "123 Main St", city: "Austin", state: "TX", motivation_score: 72, out_of_state: true, tax_delinquent: true, vacant: false, ownership_years: 25, estimated_equity: 75, pipeline_status: "Contacted", notes: "" },
-  { id: "2", owner_name: "Mary Johnson", property_address: "456 Oak Ave", city: "Dallas", state: "TX", motivation_score: 0, out_of_state: false, tax_delinquent: false, vacant: false, ownership_years: 5, estimated_equity: 30, pipeline_status: "New", notes: "" },
-  { id: "3", owner_name: "Robert Davis", property_address: "789 Pine St", city: "Houston", state: "TX", motivation_score: 90, out_of_state: true, tax_delinquent: true, vacant: true, ownership_years: 22, estimated_equity: 95, pipeline_status: "Offer Sent", notes: "" },
-];
-
-function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 70 ? "bg-green-100 text-green-700" : score >= 40 ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500";
-  return <span className={`px-2 py-1 rounded-full text-xs font-semibold ${color}`}>{score}</span>;
+interface Phone {
+  number: string
+  type: string
+  dnc: boolean
+  tcpa: boolean
+  carrier: string
+  rank: number
 }
 
-const PIPELINE_STAGES = ["New", "Contacted", "Interested", "Offer Sent", "Under Contract", "Closed", "Dead"];
+interface Person {
+  full_name: string
+  age: string
+  litigator: boolean
+  phones: Phone[]
+  emails: string[]
+  mailing_address: { street: string; city: string; state: string; zip: string }
+}
+
+interface SkipTraceResult {
+  hit: boolean
+  persons: Person[]
+}
+
+const stageColor = (status: string) => {
+  switch (status) {
+    case 'New Lead': return 'bg-gray-100 text-gray-700'
+    case 'Contacted': return 'bg-blue-100 text-blue-700'
+    case 'Interested': return 'bg-purple-100 text-purple-700'
+    case 'Offer Sent': return 'bg-yellow-100 text-yellow-700'
+    case 'Under Contract': return 'bg-orange-100 text-orange-700'
+    case 'Closed': return 'bg-green-100 text-green-700'
+    case 'Dead': return 'bg-red-100 text-red-500'
+    default: return 'bg-gray-100 text-gray-600'
+  }
+}
+
+const scoreColor = (score: number) => {
+  if (score >= 80) return 'text-green-600'
+  if (score >= 60) return 'text-yellow-600'
+  return 'text-red-500'
+}
 
 export default function Dashboard() {
-  const [leads, setLeads] = useState<Lead[]>(DEMO_LEADS);
-  const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState("");
-  const [dragOver, setDragOver] = useState(false);
-  const [search, setSearch] = useState("");
-  const [analyzing, setAnalyzing] = useState<string | null>(null);
-  const [analyses, setAnalyses] = useState<Record<string, Record<string, string>>>({});
-  const [editingNotes, setEditingNotes] = useState<string | null>(null);
+  const [leads, setLeads] = useState<Lead[]>(DEMO_LEADS)
+  const [editingNotes, setEditingNotes] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [skipTracing, setSkipTracing] = useState<string | null>(null)
+  const [skipResults, setSkipResults] = useState<Record<string, SkipTraceResult>>({})
+  const [skipError, setSkipError] = useState<string | null>(null)
 
-  const handleFile = async (file: File) => {
-    if (!file.name.endsWith(".csv")) { setUploadStatus("Please upload a .csv file"); return; }
-    setUploading(true);
-    setUploadStatus("Uploading and scoring leads...");
-    const csvText = await file.text();
-    try {
-      const res = await fetch(process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || "", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csv: csvText, userId: "demo-user" }) });
-      setUploadStatus(res.ok ? "Leads imported successfully" : "Import completed");
-    } catch { setUploadStatus("Upload sent"); }
-    setUploading(false);
-  };
+  const filtered = leads.filter((l) =>
+    l.owner_name.toLowerCase().includes(search.toLowerCase()) ||
+    l.property_address.toLowerCase().includes(search.toLowerCase())
+  )
 
-  const analyzeLead = async (lead: Lead) => {
-    setAnalyzing(lead.id);
+  const handleStageChange = (id: string, stage: string) => {
+    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage } : l))
+  }
+
+  const handleNotesChange = (id: string, notes: string) => {
+    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, notes } : l))
+  }
+
+  const handleSkipTrace = async (lead: Lead) => {
+    setSkipTracing(lead.id)
+    setSkipError(null)
     try {
-      const res = await fetch(process.env.NEXT_PUBLIC_AI_ANALYZER_URL || "", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(lead) });
-      const data = await res.json();
-      setAnalyses((prev) => ({ ...prev, [lead.id]: data }));
+      const response = await fetch('/api/skip-trace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: lead.property_address,
+          city: lead.city,
+          state: lead.state,
+          zip: lead.zip,
+        }),
+      })
+      const data = await response.json()
+      setSkipResults((prev) => ({ ...prev, [lead.id]: data }))
     } catch {
-      setAnalyses((prev) => ({ ...prev, [lead.id]: { summary: "Analysis failed.", priority: "MEDIUM" } }));
+      setSkipError('Skip trace failed. Please try again.')
     }
-    setAnalyzing(null);
-  };
-
-  const updateStatus = (leadId: string, status: string) => {
-    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, pipeline_status: status } : l)));
-  };
-
-  const updateNotes = (leadId: string, notes: string) => {
-    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, notes } : l)));
-  };
-
-  const stageColor = (status: string) => {
-    switch (status) {
-      case "New": return "bg-gray-100 text-gray-600";
-      case "Contacted": return "bg-blue-100 text-blue-700";
-      case "Interested": return "bg-purple-100 text-purple-700";
-      case "Offer Sent": return "bg-yellow-100 text-yellow-700";
-      case "Under Contract": return "bg-orange-100 text-orange-700";
-      case "Closed": return "bg-green-100 text-green-700";
-      case "Dead": return "bg-red-100 text-red-500";
-      default: return "bg-gray-100 text-gray-600";
-    }
-  };
-
-  const filtered = leads.filter((l) => l.owner_name.toLowerCase().includes(search.toLowerCase()) || l.property_address.toLowerCase().includes(search.toLowerCase()));
-  const highLeads = leads.filter((l) => l.motivation_score >= 70).length;
-  const avgScore = Math.round(leads.reduce((a, b) => a + b.motivation_score, 0) / leads.length);
+    setSkipTracing(null)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center"><span className="text-white text-sm font-bold">LF</span></div>
+          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+            <span className="text-white text-sm font-bold">LF</span>
+          </div>
           <span className="font-semibold text-gray-900">LandFlow OS</span>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-sm text-green-600 font-medium">Dashboard</Link>
           <Link href="/dashboard/kanban" className="text-sm text-gray-500 hover:text-gray-900">Kanban</Link>
-          <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900">Upgrade</Link><LogoutButton />
-        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600">TR</div>
+          <Link href="/dashboard/offer-letter" className="text-sm text-gray-500 hover:text-gray-900">Offer Letter</Link>
+          <Link href="/dashboard/settings" className="text-sm text-gray-500 hover:text-gray-900">Settings</Link>
+          <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900">Upgrade</Link>
+          <LogoutButton />
         </div>
       </nav>
+
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-xl border border-gray-100 p-5"><p className="text-xs text-gray-400 mb-1">Total leads</p><p className="text-3xl font-semibold text-gray-900">{leads.length}</p></div>
-          <div className="bg-white rounded-xl border border-gray-100 p-5"><p className="text-xs text-gray-400 mb-1">High priority</p><p className="text-3xl font-semibold text-green-600">{highLeads}</p></div>
-          <div className="bg-white rounded-xl border border-gray-100 p-5"><p className="text-xs text-gray-400 mb-1">Avg score</p><p className="text-3xl font-semibold text-gray-900">{avgScore}</p></div>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-bold text-gray-900">Lead Pipeline</h1>
+          <input
+            type="text"
+            placeholder="Search leads..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm w-64"
+          />
         </div>
-        <div className={`border-2 border-dashed rounded-xl p-10 text-center mb-8 ${dragOver ? "border-green-400 bg-green-50" : "border-gray-200 bg-white"}`} onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={(e) => { e.preventDefault(); setDragOver(false); const file = e.dataTransfer.files[0]; if (file) handleFile(file); }}>
-          <div className="text-4xl mb-3">📁</div>
-          <p className="text-gray-600 font-medium mb-1">Drop your PropStream CSV here</p>
-          <p className="text-gray-400 text-sm mb-4">or click to browse your files</p>
-          <label className="cursor-pointer bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-green-700">
-            Choose CSV file
-            <input type="file" accept=".csv" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); }} />
-          </label>
-          {uploading && <p className="mt-4 text-green-600 text-sm animate-pulse">{uploadStatus}</p>}
-          {!uploading && uploadStatus && <p className="mt-4 text-green-600 text-sm">{uploadStatus}</p>}
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">Your leads</h2>
-            <input type="text" placeholder="Search leads..." value={search} onChange={(e) => setSearch(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 w-48 focus:outline-none focus:border-green-400" />
+
+        {skipError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            {skipError}
           </div>
-          <div className="divide-y divide-gray-50">
-            {filtered.map((lead) => (
-              <div key={lead.id} className="px-6 py-4 hover:bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-xs font-semibold text-gray-600">{lead.owner_name.split(" ").map((n) => n[0]).join("")}</div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{lead.owner_name}</p>
-                      <p className="text-xs text-gray-400">{lead.property_address}, {lead.city}, {lead.state}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {lead.out_of_state && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Out of state</span>}
-                    {lead.tax_delinquent && <span className="text-xs bg-red-50 text-red-500 px-2 py-0.5 rounded-full">Tax delinquent</span>}
-                    {lead.vacant && <span className="text-xs bg-orange-50 text-orange-500 px-2 py-0.5 rounded-full">Vacant</span>}
-                    <ScoreBadge score={lead.motivation_score} />
-                    <select value={lead.pipeline_status} onChange={(e) => updateStatus(lead.id, e.target.value)} className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer ${stageColor(lead.pipeline_status)}`}>
-                      {PIPELINE_STAGES.map((stage) => (<option key={stage} value={stage}>{stage}</option>))}
-                    </select>
-                    <div className="flex gap-2 ml-2">
-                      <button onClick={() => setEditingNotes(editingNotes === lead.id ? null : lead.id)} className="text-xs text-gray-500 hover:underline">
-                        Notes {lead.notes ? "*" : ""}
-                      </button>
-                      <button onClick={() => analyzeLead(lead)} disabled={analyzing === lead.id} className="text-xs text-purple-600 hover:underline disabled:opacity-50">
-                        {analyzing === lead.id ? "Analyzing..." : "AI analyze"}
-                      </button>
-                      <Link href={`/dashboard/researcher/${lead.id}`} className="text-xs text-green-600 hover:underline">Research</Link>
-                    </div>
-                  </div>
+        )}
+
+        <div className="space-y-4">
+          {filtered.map((lead) => (
+            <div key={lead.id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="font-semibold text-gray-900">{lead.owner_name}</h2>
+                  <p className="text-sm text-gray-500">{lead.property_address}, {lead.city}, {lead.state} {lead.zip}</p>
                 </div>
-                {editingNotes === lead.id && (
-                  <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
-                    <textarea value={lead.notes} onChange={(e) => updateNotes(lead.id, e.target.value)} placeholder="Add call notes, conversation history, next steps..." className="w-full text-sm border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-green-400 resize-none" rows={3} />
-                    <p className="text-xs text-gray-400 mt-1">Notes save automatically as you type</p>
-                  </div>
-                )}
-                {analyses[lead.id] && (
-                  <div className="mt-3 bg-purple-50 border border-purple-100 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-purple-700">AI Analysis</span>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${analyses[lead.id].priority === "HIGH" ? "bg-green-100 text-green-700" : analyses[lead.id].priority === "LOW" ? "bg-gray-100 text-gray-500" : "bg-yellow-100 text-yellow-700"}`}>{analyses[lead.id].priority}</span>
-                    </div>
-                    {analyses[lead.id].summary && <p className="text-xs text-gray-700 mb-1"><span className="font-medium">Summary:</span> {analyses[lead.id].summary}</p>}
-                    {analyses[lead.id].motivation && <p className="text-xs text-gray-700 mb-1"><span className="font-medium">Motivation:</span> {analyses[lead.id].motivation}</p>}
-                    {analyses[lead.id].approach && <p className="text-xs text-gray-700 mb-1"><span className="font-medium">Approach:</span> {analyses[lead.id].approach}</p>}
-                    {analyses[lead.id].offer_range && <p className="text-xs text-gray-700 mb-1"><span className="font-medium">Offer range:</span> {analyses[lead.id].offer_range}</p>}
-                    {analyses[lead.id].risk && <p className="text-xs text-gray-600"><span className="font-medium text-red-600">Risk:</span> {analyses[lead.id].risk}</p>}
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-bold ${scoreColor(lead.motivation_score)}`}>
+                    Score: {lead.motivation_score}
+                  </span>
+                  <select
+                    value={lead.stage}
+                    onChange={(e) => handleStageChange(lead.id, e.target.value)}
+                    className={`text-xs rounded-full px-3 py-1 font-medium border-0 ${stageColor(lead.stage)}`}
+                  >
+                    {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => handleSkipTrace(lead)}
+                  disabled={skipTracing === lead.id}
+                  className="text-xs rounded-md bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {skipTracing === lead.id ? 'Searching...' : '🔍 Skip Trace'}
+                </button>
+                <Link
+                  href={`/dashboard/offer-letter?lead=${lead.id}`}
+                  className="text-xs rounded-md bg-green-600 px-3 py-1.5 text-white hover:bg-green-700"
+                >
+                  📝 Offer Letter
+                </Link>
+                <Link
+                  href={`/dashboard/researcher/${lead.id}`}
+                  className="text-xs rounded-md bg-purple-600 px-3 py-1.5 text-white hover:bg-purple-700"
+                >
+                  🔬 Research
+                </Link>
+              </div>
+
+              {skipResults[lead.id] && (
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  {skipResults[lead.id].hit && skipResults[lead.id].persons?.length > 0 ? (
+                    skipResults[lead.id].persons.map((person, i) => (
+                      <div key={i}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <p className="text-sm font-semibold text-gray-900">{person.full_name}</p>
+                          {person.age && <span className="text-xs text-gray-500">Age: {person.age}</span>}
+                          {person.litigator && (
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                              ⚠️ Litigator
+                            </span>
+                          )}
+                        </div>
+                        {person.phones?.length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-xs font-medium text-gray-600 mb-1">📞 Phone Numbers:</p>
+                            {person.phones.map((phone, j) => (
+                              <div key={j} className="flex items-center gap-2 text-xs text-gray-700 mb-0.5">
+                                <span className="font-medium">
+                                  {phone.number.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}
+                                </span>
+                                <span className="text-gray-400">{phone.type}</span>
+                                {phone.dnc && <span className="text-red-500 font-medium">DNC</span>}
+                                {phone.tcpa && <span className="text-orange-500 font-medium">TCPA</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {person.emails?.length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-xs font-medium text-gray-600 mb-1">📧 Emails:</p>
+                            {person.emails.map((email, j) => (
+                              <p key={j} className="text-xs text-gray-700">{email}</p>
+                            ))}
+                          </div>
+                        )}
+                        {person.mailing_address?.street && (
+                          <div>
+                            <p className="text-xs font-medium text-gray-600 mb-1">📬 Mailing Address:</p>
+                            <p className="text-xs text-gray-700">
+                              {person.mailing_address.street}, {person.mailing_address.city}, {person.mailing_address.state} {person.mailing_address.zip}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">No results found for this address.</p>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-3">
+                {editingNotes === lead.id ? (
+                  <textarea
+                    value={lead.notes}
+                    onChange={(e) => handleNotesChange(lead.id, e.target.value)}
+                    onBlur={() => setEditingNotes(null)}
+                    className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    rows={2}
+                    placeholder="Add call notes..."
+                    autoFocus
+                  />
+                ) : (
+                  <p
+                    onClick={() => setEditingNotes(lead.id)}
+                    className="text-sm text-gray-400 cursor-pointer hover:text-gray-600"
+                  >
+                    {lead.notes || 'Click to add call notes...'}
+                  </p>
                 )}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
-  );
+  )
 }
