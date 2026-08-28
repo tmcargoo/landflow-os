@@ -222,12 +222,14 @@ export default function Dashboard() {
                           </div>
                         )}
                         {person.emails?.length > 0 && (
-                          <div className="mb-2">
-                            <p className="text-xs font-medium text-gray-600 mb-1">📧 Emails:</p>
-                            {person.emails.map((email, j) => (
-                              <p key={j} className="text-xs text-gray-700">{email}</p>
-                            ))}
-                          </div>
+                           <div className="mb-2">
+                             <p className="text-xs font-medium text-gray-600 mb-1">📧 Emails:</p>
+                             {person.emails.map((email: string | { email: string; rank: number }, j) => (
+                               <p key={j} className="text-xs text-gray-700">
+                                 {typeof email === 'string' ? email : email.email}
+                               </p>
+                             ))}
+                            </div>
                         )}
                         {person.mailing_address?.street && (
                           <div>
