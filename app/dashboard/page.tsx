@@ -198,7 +198,16 @@ export default function Dashboard() {
         </div>
 
         <div className="mb-6 border-2 border-dashed border-gray-300 rounded-xl p-6 bg-white text-center">
-          <p className="text-sm font-medium text-gray-700 mb-2">📂 Upload Leads CSV</p>
+          <div className="flex items-center justify-center gap-4 mb-2">
+            <p className="text-sm font-medium text-gray-700">📂 Upload Leads CSV</p>
+            <a
+              href="/api/csv-template"
+              download
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              Download Template
+            </a>
+          </div>
           <input
             type="file"
             accept=".csv,.txt,.tsv"
