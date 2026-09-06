@@ -151,7 +151,7 @@ export default function HelpPage() {
           <Link href="/dashboard/kanban" className="text-sm text-gray-500 hover:text-gray-900">Kanban</Link>
           <Link href="/dashboard/offer-letter" className="text-sm text-gray-500 hover:text-gray-900">Offer Letter</Link>
           <Link href="/dashboard/settings" className="text-sm text-gray-500 hover:text-gray-900">Settings</Link>
-          <Link href="/dashboard/help" className="text-sm text-green-600 font-medium">Help</Link>
+          <Link href="/dashboard/help" className="text-sm text-gray-500 hover:text-gray-900">Help</Link>
           <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900">Upgrade</Link>
           <LogoutButton />
         </div>
@@ -179,7 +179,8 @@ export default function HelpPage() {
               <nav className="space-y-1">
                 {sections.map((section) => (
                   
-                  <a  key={section.id}
+                  <a  
+                    key={section.id}
                     href={`#${section.id}`}
                     className="block text-sm text-gray-600 hover:text-green-600 py-0.5"
                   >

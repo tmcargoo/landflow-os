@@ -180,6 +180,7 @@ export default function Dashboard() {
           <Link href="/dashboard/kanban" className="text-sm text-gray-500 hover:text-gray-900">Kanban</Link>
           <Link href="/dashboard/offer-letter" className="text-sm text-gray-500 hover:text-gray-900">Offer Letter</Link>
           <Link href="/dashboard/settings" className="text-sm text-gray-500 hover:text-gray-900">Settings</Link>
+          <Link href="/dashboard/help" className="text-sm text-gray-500 hover:text-gray-900">Help</Link>
           <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900">Upgrade</Link>
           <LogoutButton />
         </div>
