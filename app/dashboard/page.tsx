@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import LogoutButton from '@/lib/logout-button'
 import { createClient } from '@/lib/supabase-client'
+import FeedbackButton from '@/lib/feedback-button'
 
 const STAGES = ['New Lead', 'Contacted', 'Interested', 'Offer Sent', 'Under Contract', 'Closed', 'Dead']
 
@@ -364,6 +365,7 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      <FeedbackButton />
     </div>
   )
 }
