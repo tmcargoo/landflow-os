@@ -28,7 +28,7 @@ export default function Home() {
           Your land deals.<br />Organized and scored.
         </h1>
         <p className="text-xl text-gray-500 mb-10 max-w-2xl mx-auto">
-          Upload your PropStream CSV and LandFlow OS instantly scores every lead by motivation level — so you know exactly who to call first.
+          Upload your lead list CSV and LandFlow OS instantly scores every lead by motivation level — so you know exactly who to call first.
         </p>
         <div className="flex items-center justify-center gap-4">
           <Link href="/register" className="bg-green-600 text-white px-8 py-3 rounded-lg text-lg font-medium hover:bg-green-700">
@@ -45,7 +45,7 @@ export default function Home() {
               <span className="text-green-600 text-lg">📁</span>
             </div>
             <h3 className="font-semibold text-gray-900 mb-2">Upload any CSV</h3>
-            <p className="text-gray-500 text-sm">Works with PropStream, BatchLeads, DataTree and more. No reformatting needed.</p>
+            <p className="text-gray-500 text-sm">Works with any CSV export from your data provider. No reformatting needed.</p>
           </div>
           <div className="bg-white rounded-xl p-6 border border-gray-100">
             <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center mb-4">
